@@ -15,9 +15,9 @@ The aim of this project is to monitor certain air parameters and activate a buzz
 8. VOC (Volatile Organic Compounds)
 
 ## Sensors 
-| Sensor   |     Parameter
-| BME280   |    Humidity, Temperature
-PM5003   |    PM2.5
-MICS6814 |    CO, NO2, NH3
-MQ131    |    03
-MP503    |    voc
+| Sensor   |     Parameter            |
+| BME280   |    Humidity, Temperature |
+| PM5003   |    PM2.5                 |         
+| MICS6814 |    CO, NO2, NH3          |
+| MQ131    |    03                    |
+| MP503    |    VOC                   |
