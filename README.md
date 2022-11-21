@@ -16,6 +16,7 @@ The aim of this project is to monitor certain air parameters and activate a buzz
 
 ## Sensors 
 | Sensor   |     Parameter            |
+| -------- | -----------------------  |
 | BME280   |    Humidity, Temperature |
 | PM5003   |    PM2.5                 |         
 | MICS6814 |    CO, NO2, NH3          |
