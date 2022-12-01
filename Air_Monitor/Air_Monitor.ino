@@ -25,6 +25,12 @@ typedef struct
   uint32_t hum;
 }airParam_t;
 
+typedef struct
+{
+  char temp[10];
+  char hum[10];
+}mqttData_t;
+
 /* The values stored in members of airParam_t struct 
  * must be conveterted back to their double form before being 
  * used.
@@ -121,7 +127,7 @@ void SensorsTask(void* pvParameters)
 {
   while(1)
   {
-   //Get_SensorsData(); 
+   Get_SensorsData(); 
   }
 }
 
@@ -130,6 +136,7 @@ void MqttTask(void* pvParameters)
   static WiFiClient wifiClient;
   static PubSubClient mqttClient(wifiClient);
 
+  mqttData_t dataToSend;
   char humTopic[SIZE_TOPIC] = "AirMonitor/hum";
   char tempTopic[SIZE_TOPIC] = "AirMonitor/temp";
 
@@ -143,7 +150,6 @@ void MqttTask(void* pvParameters)
       if(!mqttClient.connected())
       {
         mqttClient.setServer(mqttBroker,mqttPort);
-        //mqttClient.setCallback(MqttCallback);
         while(!mqttClient.connected())
         {
           String clientID = String(WiFi.macAddress());
@@ -157,8 +163,14 @@ void MqttTask(void* pvParameters)
       {
         if((millis() - prevTime) >= 5000)
         {
-          mqttClient.publish(humTopic,"1");
-          mqttClient.publish(tempTopic,"2");
+          sprintf(dataToSend.temp, "%d", airParam.temp);
+          sprintf(dataToSend.hum, "%d", airParam.hum);
+          Serial.print("Data to Send, Hum");
+          Serial.println(dataToSend.hum);
+          Serial.print("Data to Send, Temp");
+          Serial.println(dataToSend.temp);
+          mqttClient.publish(humTopic,dataToSend.hum);
+          mqttClient.publish(tempTopic,dataToSend.temp);
           prevTime = millis();
         }
       }
