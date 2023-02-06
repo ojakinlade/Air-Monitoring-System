@@ -16,7 +16,7 @@ void setup() {
   // - Sensor analog read on pin A0
   // - Model LOW_CONCENTRATION
   // - Load resistance RL of 1MOhms (1000000 Ohms)
-  MQ131.begin(2,A0, LOW_CONCENTRATION, 1000000);  
+  MQ131.begin(2,A3, LOW_CONCENTRATION, 1000000);  
 
   Serial.println("Calibration in progress...");
   
