@@ -7,7 +7,7 @@
 class MNI
 {
   private:
-    enum BufferSize{TX = 0, RX = 2};
+    enum BufferSize{TX = 18, RX = 2};
     SoftwareSerial* port;
     uint8_t rxDataCounter;
     uint8_t txBuffer[BufferSize::TX];
@@ -17,7 +17,15 @@ class MNI
     enum{QUERY = 0xAA, ACK = 0xBB};
     enum TxDataId
     {
-      DATA_ACK = 0
+      DATA_ACK = 0,
+      TEMP = 2,
+      HUM = 4,
+      NO2 = 6,
+      NH3 = 8,
+      CO = 10,
+      PIN_A_STATE = 12,
+      PIN_B_STATE = 14,
+      O3 = 16
     };
     enum RxDataId {DATA_QUERY = 0};
     
