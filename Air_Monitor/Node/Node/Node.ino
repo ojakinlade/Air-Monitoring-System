@@ -19,20 +19,14 @@ typedef struct
   float O3;
 }SensorData_t;
 
-enum MP503_PINS
-{
-  A = 0,
-  B
-};
-
 namespace Pin
 {
   const uint8_t NO2Pin = A0;
   const uint8_t NH3Pin = A1;
   const uint8_t COPin = A2;
   const uint8_t O3Sensor = A3;
-  const uint8_t nodeRx = 2;
-  const uint8_t nodeTx = 3;
+  const uint8_t nodeRx = 6;
+  const uint8_t nodeTx = 7;
   const uint8_t MP503_A = 4;
   const uint8_t MP503_B = 5;
 };
@@ -52,10 +46,10 @@ void setup() {
   Serial.begin(9600);
   Serial.println("Air Monitoring System...");
   bmeSensor.begin(BME280_ADDR);
-  MQ131.begin(2,Pin::O3Sensor,LOW_CONCENTRATION,1000000);
-  Serial.println("Calibrating.......");
-  MQ131.calibrate();
-  Serial.println("Done Calibrating.");
+  //MQ131.begin(2,Pin::O3Sensor,LOW_CONCENTRATION,1000000);
+//  Serial.println("Calibrating.......");
+//  MQ131.calibrate();
+//  Serial.println("Done Calibrating.");
 }
 
 void loop() {
@@ -68,22 +62,22 @@ void loop() {
       Get_SensorData(dataToSend);
       
       //Debug
-      Serial.print("Temperature: ");
-      Serial.println(dataToSend.temp);
-      Serial.print("Humidity: ");
-      Serial.println(dataToSend.hum);
-      Serial.print("NO2 conc: ");
-      Serial.println(dataToSend.NO2);
-      Serial.print("NH3 conc: ");
-      Serial.println(dataToSend.NH3);
-      Serial.print("CO conc: ");
-      Serial.println(dataToSend.CO);
-      Serial.print("A: ");
-      Serial.println(dataToSend.pinAState);
-      Serial.print("B: ");
-      Serial.println(dataToSend.pinBState);
-      Serial.print("O3 conc: ");
-      Serial.println(dataToSend.O3);
+//      Serial.print("Temperature: ");
+//      Serial.println(dataToSend.temp,2);
+//      Serial.print("Humidity: ");
+//      Serial.println(dataToSend.hum,2);
+//      Serial.print("NO2 conc: ");
+//      Serial.println(dataToSend.NO2);
+//      Serial.print("NH3 conc: ");
+//      Serial.println(dataToSend.NH3);
+//      Serial.print("CO conc: ");
+//      Serial.println(dataToSend.CO);
+//      Serial.print("A: ");
+//      Serial.println(dataToSend.pinAState);
+//      Serial.print("B: ");
+//      Serial.println(dataToSend.pinBState);
+//      Serial.print("O3 conc: ");
+//      Serial.println(dataToSend.O3,2);
 
       mni.EncodeData(MNI::ACK,MNI::TxDataId::DATA_ACK);
       mni.EncodeData((dataToSend.temp * 100),MNI::TxDataId::TEMP);
@@ -106,8 +100,8 @@ void Get_SensorData(SensorData_t& data)
   data.NO2 = micsSensor.GetValue(MICS6814::GAS::NO2);
   data.NH3 = micsSensor.GetValue(MICS6814::GAS::NH3);
   data.CO = micsSensor.GetValue(MICS6814::GAS::CO);
-  data.pinAState = mp503.GetState(A);
-  data.pinBState = mp503.GetState(B);
-  MQ131.sample();
-  data.O3 = MQ131.getO3(PPB);
+  data.pinAState = (uint16_t) mp503.GetState(Pin::MP503_A);
+  data.pinBState = (uint16_t)mp503.GetState(Pin::MP503_B);
+//  MQ131.sample();
+//  data.O3 = MQ131.getO3(PPB);
 }

@@ -19,8 +19,11 @@ void setup() {
   MQ131.begin(2,A3, LOW_CONCENTRATION, 1000000);  
 
   Serial.println("Calibration in progress...");
-  
+  Serial.print("Initial Time: ");
+  Serial.println(millis());
   MQ131.calibrate();
+  Serial.print("Finish Time: ");
+  Serial.println(millis());
   
   Serial.println("Calibration done!");
 //  Serial.print("R0 = ");
@@ -33,7 +36,11 @@ void setup() {
 
 void loop() {
   Serial.println("Sampling...");
+  Serial.print("Data init Time: ");
+  Serial.println(millis());
   MQ131.sample();
+  Serial.print("Data Finish Time: ");
+  Serial.println(millis());
   Serial.print("Concentration O3 : ");
 //  Serial.print(MQ131.getO3(PPM));
 //  Serial.println(" ppm");

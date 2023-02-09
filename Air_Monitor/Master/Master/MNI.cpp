@@ -64,5 +64,5 @@ uint16_t MNI::DecodeData(RxDataId id)
 {
   uint8_t dataID = (uint8_t)id;
   //merge two consecutive bytes stored in 'rxBuffer' into 16-bit data
-  return (rxBuffer[dataID] << 8) | rxBuffer[dataID + 1];
+  return ((rxBuffer[dataID] << 8) | rxBuffer[dataID + 1]);
 }
