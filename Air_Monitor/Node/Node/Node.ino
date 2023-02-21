@@ -59,25 +59,7 @@ void loop() {
     if(mni.DecodeData(MNI::RxDataId::DATA_QUERY) == MNI::QUERY)
     {
       Serial.println("Query Received");
-      Get_SensorData(dataToSend);
-      
-      //Debug
-//      Serial.print("Temperature: ");
-//      Serial.println(dataToSend.temp,2);
-//      Serial.print("Humidity: ");
-//      Serial.println(dataToSend.hum,2);
-//      Serial.print("NO2 conc: ");
-//      Serial.println(dataToSend.NO2);
-//      Serial.print("NH3 conc: ");
-//      Serial.println(dataToSend.NH3);
-//      Serial.print("CO conc: ");
-//      Serial.println(dataToSend.CO);
-//      Serial.print("A: ");
-//      Serial.println(dataToSend.pinAState);
-//      Serial.print("B: ");
-//      Serial.println(dataToSend.pinBState);
-//      Serial.print("O3 conc: ");
-//      Serial.println(dataToSend.O3,2);
+      Get_SensorData(dataToSend); 
 
       mni.EncodeData(MNI::ACK,MNI::TxDataId::DATA_ACK);
       mni.EncodeData((dataToSend.temp * 100),MNI::TxDataId::TEMP);

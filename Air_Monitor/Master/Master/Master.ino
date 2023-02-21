@@ -68,10 +68,10 @@ void setup() {
   {
     Serial.println("Node-MQTT Queue creation failed");
   }  
-  //xTaskCreatePinnedToCore(WiFiManagementTask,"",7000,NULL,1,&wifiTaskHandle,1);
-  //xTaskCreatePinnedToCore(ApplicationTask,"",30000,NULL,1,NULL,1);
+  xTaskCreatePinnedToCore(WiFiManagementTask,"",7000,NULL,1,&wifiTaskHandle,1);
+  xTaskCreatePinnedToCore(ApplicationTask,"",30000,NULL,1,NULL,1);
   xTaskCreatePinnedToCore(NodeTask,"",30000,NULL,1,&nodeTaskHandle,1);
-  //xTaskCreatePinnedToCore(MqttTask,"",7000,NULL,1,NULL,1);
+  xTaskCreatePinnedToCore(MqttTask,"",7000,NULL,1,NULL,1);
   //vTaskSuspend(&wifiTaskHandle);
 }
 
@@ -143,31 +143,102 @@ void WiFiManagementTask(void* pvParameters)
 */
 void ApplicationTask(void* pvParameters)
 {
-//  LiquidCrystal_I2C lcd(0x27,20,4);
-//  static SensorData_t sensorData;
-//  bool isWiFiTaskSuspended = false;
-//
-//  //Startup message
-//  lcd.init();
-//  lcd.backlight();
-//  lcd.print(" AIR MONITOR");
-//  vTaskDelay(pdMS_TO_TICKS(1500));
-//  lcd.clear();
-//  lcd.print("STATUS: ");
-//  lcd.setCursor(0,1);
-//  lcd.print("LOADING...");
-//  vTaskDelay(pdMS_TO_TICKS(1500));
-//  lcd.clear();
-//  vTaskResume(nodeTaskHandle);
-//
-//  //Simple FSM to periodically change parameters being displayed
-//  const uint8_t displayState1 = 0;
-//  const uint8_t displayState2 = 1;
-//  uint8_t displayState = displayState1;
-//  uint32_t prevTime = millis();
+  LiquidCrystal_I2C lcd(0x27,20,4);
+  static SensorData_t sensorData;
+  bool isWifiTaskSuspended = false;
+
+  //Startup message
+  lcd.init();
+  lcd.backlight();
+  lcd.print(" AIR MONITOR");
+  vTaskDelay(pdMS_TO_TICKS(1500));
+  lcd.clear();
+  lcd.print("STATUS: ");
+  lcd.setCursor(0,1);
+  lcd.print("LOADING...");
+  vTaskDelay(pdMS_TO_TICKS(1500));
+  lcd.clear();
+  vTaskResume(nodeTaskHandle);
+
+  //Simple FSM to periodically change parameters being displayed
+  const uint8_t displayState1 = 0;
+  const uint8_t displayState2 = 1;
+  uint8_t displayState = displayState1;
+  uint32_t prevTime = millis();
   while(1)
   {
-    
+    /**
+     * Suspend Wifi management task if the system is already
+     * connected to a WiFi network
+     */
+    if(WiFi.status() == WL_CONNECTED && !isWifiTaskSuspended)
+    {
+      vTaskSuspend(wifiTaskHandle);
+      Serial.println("WIFI TASK: SUSPENDED");
+      isWifiTaskSuspended = true;
+    }
+    else if(WiFi.status() != WL_CONNECTED && isWifiTaskSuspended)
+    {
+      vTaskResume(wifiTaskHandle);
+      Serial.println("WIFI TASK: RESUMED");
+      isWifiTaskSuspended = false;
+    }
+    //Receive data from Node Task
+    if(xQueueReceive(nodeToAppQueue,&sensorData,0) == pdPASS)
+    {
+      Serial.println("--Application task received data from Node task\n");
+    }
+    //FSM[Displays the received sensor data received on the LCD]
+    switch(displayState)
+    {
+      case displayState1:
+        lcd.setCursor(0,0);
+        lcd.print("Temp: ");
+        lcd.print(sensorData.temp);
+        lcd.print(" C");
+        lcd.setCursor(0,1);
+        lcd.print("Hum: ");
+        lcd.print(sensorData.hum);
+        lcd.print(" %");
+        lcd.setCursor(0,2);
+        lcd.print("NO2 conc: ");
+        lcd.print(sensorData.NO2);
+        lcd.print(" ppm");
+        lcd.setCursor(0,3);
+        lcd.print("NH3 conc: ");
+        lcd.print(sensorData.NH3);
+        lcd.print(" ppm");
+        if(millis() - prevTime >= 4000)
+        {
+          displayState = displayState2;
+          prevTime = millis();
+          lcd.clear();
+        }
+        break;
+        
+      case displayState2:
+        lcd.setCursor(0,0);
+        lcd.print("CO conc: ");
+        lcd.print(sensorData.CO);
+        lcd.print(" ppm");
+        lcd.setCursor(0,1);
+        lcd.print("Pin A: ");
+        lcd.print(sensorData.pinAState);
+        lcd.setCursor(0,2);
+        lcd.print("Pin B: ");
+        lcd.print(sensorData.pinBState);
+        lcd.setCursor(0,3);
+        lcd.print("O3 conc: ");
+        lcd.print(sensorData.O3);
+        lcd.print(" ppm");
+        if(millis() - prevTime >= 4000)
+        {
+          displayState = displayState1;
+          prevTime = millis();
+          lcd.clear();
+        }
+        break;
+    }
   }
 }
 
@@ -178,14 +249,10 @@ void ApplicationTask(void* pvParameters)
 */
 void NodeTask(void* pvParameters)
 {
-  //vTaskSuspend(NULL);
+  vTaskSuspend(NULL);
   vTaskDelay(pdMS_TO_TICKS(3000));
   static MNI mni(&Serial2);
   static SensorData_t sensorData;
-  //Initial request for sensorData from the node
-//  mni.EncodeData(MNI::QUERY,MNI::TxDataId::DATA_QUERY);
-//  mni.TransmitData();
-//  Serial.println("Query Sent");
   uint32_t prevTime = millis();
 
   while(1)
@@ -201,9 +268,6 @@ void NodeTask(void* pvParameters)
     //Decode data received from node
     if(mni.ReceivedData())
     {
-//      Serial.println("Data received");
-//      Serial.print("ACK: ");
-//      Serial.println(mni.DecodeData(MNI::RxDataId::DATA_ACK));
       if(mni.DecodeData(MNI::RxDataId::DATA_ACK) == MNI::ACK)
       {
         Serial.println("--Received serial data from node\n");
@@ -233,23 +297,23 @@ void NodeTask(void* pvParameters)
         Serial.print("O3 conc: ");
         Serial.println(sensorData.O3);
         //Place sensor data in the Node-Application Queue
-//        if(xQueueSend(nodeToAppQueue,&sensorData,0) == pdPASS)
-//        {
-//          Serial.println("--Data successfully sent to Application task\n");
-//        }
-//        else
-//        {
-//          Serial.println("--Failed to send data to Application task\n");
-//        }
-//        //Place sensor data in the Node-MQTT Queue
-//        if(xQueueSend(nodeToMqttQueue,&sensorData,0) == pdPASS)
-//        {
-//          Serial.println("--Data successfully sent to MQTT task\n");
-//        }
-//        else
-//        {
-//          Serial.println("--Failed to send data to MQTT task\n");
-//        }
+        if(xQueueSend(nodeToAppQueue,&sensorData,0) == pdPASS)
+        {
+          Serial.println("--Data successfully sent to Application task\n");
+        }
+        else
+        {
+          Serial.println("--Failed to send data to Application task\n");
+        }
+        //Place sensor data in the Node-MQTT Queue
+        if(xQueueSend(nodeToMqttQueue,&sensorData,0) == pdPASS)
+        {
+          Serial.println("--Data successfully sent to MQTT task\n");
+        }
+        else
+        {
+          Serial.println("--Failed to send data to MQTT task\n");
+        }
       }
     }
   }
