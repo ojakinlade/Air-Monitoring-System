@@ -24,6 +24,8 @@ typedef struct
   uint16_t pinAState;
   uint16_t pinBState;
   float O3;
+  uint16_t pms2_5;
+  uint16_t pms10_0;
 }SensorData_t;
 
 //RTOS Handle(s)
@@ -163,6 +165,7 @@ void ApplicationTask(void* pvParameters)
   //Simple FSM to periodically change parameters being displayed
   const uint8_t displayState1 = 0;
   const uint8_t displayState2 = 1;
+  const uint8_t displayState3 = 2;
   uint8_t displayState = displayState1;
   uint32_t prevTime = millis();
   while(1)
@@ -233,6 +236,21 @@ void ApplicationTask(void* pvParameters)
         lcd.print(" ppm");
         if(millis() - prevTime >= 4000)
         {
+          displayState = displayState3;
+          prevTime = millis();
+          lcd.clear();
+        }
+        break;
+
+      case displayState3:
+        lcd.setCursor(0,0);
+        lcd.print("PMS2.5(ug/m3): ");
+        lcd.print(sensorData.pms2_5);
+        lcd.setCursor(0,1);
+        lcd.print("PMS10.0(ug/m3): ");
+        lcd.print(sensorData.pms10_0);
+        if(millis() - prevTime >= 4000)
+        {
           displayState = displayState1;
           prevTime = millis();
           lcd.clear();
@@ -279,6 +297,8 @@ void NodeTask(void* pvParameters)
         sensorData.pinAState = mni.DecodeData(MNI::RxDataId::PIN_A_STATE);
         sensorData.pinBState = mni.DecodeData(MNI::RxDataId::PIN_B_STATE);
         sensorData.O3 = mni.DecodeData(MNI::RxDataId::O3) / 100.0;
+        sensorData.pms2_5 = mni.DecodeData(MNI::RxDataId::PMS2_5);
+        sensorData.pms10_0 = mni.DecodeData(MNI::RxDataId::PMS10_0);
         //Debug
         Serial.print("Temperature: ");
         Serial.println(sensorData.temp);
@@ -296,6 +316,10 @@ void NodeTask(void* pvParameters)
         Serial.println(sensorData.pinBState);
         Serial.print("O3 conc: ");
         Serial.println(sensorData.O3);
+        Serial.print("PM 2.5 (ug/m3): ");
+        Serial.println(sensorData.pms2_5);
+        Serial.print("PM 10.0 (ug/m3): ");
+        Serial.println(sensorData.pms10_0);
         //Place sensor data in the Node-Application Queue
         if(xQueueSend(nodeToAppQueue,&sensorData,0) == pdPASS)
         {
@@ -357,7 +381,9 @@ void MqttTask(void* pvParameters)
                                  "NO2 conc: " + String(sensorData.NO2) + " PPM\n" +
                                  "NH3 conc: " + String(sensorData.NH3) + " PPM\n" +
                                  "CO conc: " + String(sensorData.CO) + " PPM\n" +
-                                 "O3 conc: " + String(sensorData.O3) + " PPM\n";
+                                 "O3 conc: " + String(sensorData.O3) + " PPM\n" +
+                                 "PMS2.5: " + String(sensorData.pms2_5) + "ug/m3\n" +
+                                 "PMS10.0: " + String(sensorData.pms10_0) + "ug/m3\n";
           mqttClient.publish(prevSubTopic,dataToPublish.c_str());
         }
       }
