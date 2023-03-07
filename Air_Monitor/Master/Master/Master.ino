@@ -5,12 +5,19 @@
 #include <PubSubClient.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include <ThingSpeak.h>
 #include "MNI.h"
 
 //Maximum number of characters for HiveMQ topic(s)
-#define SIZE_TOPIC    30
+#define SIZE_TOPIC      30
+//Maximum number of characters for Thingspeak credentials
+#define SIZE_CHANNEL_ID 30
+#define SIZE_API_KEY    50
 //Define textbox for MQTT publish topic
-WiFiManagerParameter subTopic("0","HiveMQ Subscription topic","",SIZE_TOPIC);
+WiFiManagerParameter pubTopic("0","HiveMQ Publish topic","",SIZE_TOPIC);
+//Define textboxes for Thingspeak credentials
+WiFiManagerParameter channelId("1","Thingspeak Channel ID","",SIZE_CHANNEL_ID);
+WiFiManagerParameter apiKey("2","Thingspeak API key","",SIZE_API_KEY);
 Preferences preferences; //for accessing ESP32 flash memory
 
 //Type(s)
@@ -24,8 +31,8 @@ typedef struct
   uint16_t pinAState;
   uint16_t pinBState;
   float O3;
-  uint16_t pms2_5;
-  uint16_t pms10_0;
+  uint16_t pm2_5;
+  uint16_t pm10_0;
 }SensorData_t;
 
 //RTOS Handle(s)
@@ -73,7 +80,7 @@ void setup() {
   xTaskCreatePinnedToCore(WiFiManagementTask,"",7000,NULL,1,&wifiTaskHandle,1);
   xTaskCreatePinnedToCore(ApplicationTask,"",30000,NULL,1,NULL,1);
   xTaskCreatePinnedToCore(NodeTask,"",30000,NULL,1,&nodeTaskHandle,1);
-  xTaskCreatePinnedToCore(MqttTask,"",7000,NULL,1,NULL,1);
+  xTaskCreatePinnedToCore(DataToCloudTask,"",7000,NULL,1,NULL,1);
   //vTaskSuspend(&wifiTaskHandle);
 }
 
@@ -92,7 +99,9 @@ void WiFiManagementTask(void* pvParameters)
   const uint16_t accessPointTimeout = 50000; //millisecs
   static WiFiManager wm;
   WiFi.mode(WIFI_STA);  
-  wm.addParameter(&subTopic);
+  wm.addParameter(&pubTopic);
+  wm.addParameter(&channelId);
+  wm.addParameter(&apiKey);
   wm.setConfigPortalBlocking(false);
   wm.setSaveParamsCallback(WiFiManagerCallback); 
   //Auto-connect to previous network if available.
@@ -245,10 +254,10 @@ void ApplicationTask(void* pvParameters)
       case displayState3:
         lcd.setCursor(0,0);
         lcd.print("PMS2.5(ug/m3): ");
-        lcd.print(sensorData.pms2_5);
+        lcd.print(sensorData.pm2_5);
         lcd.setCursor(0,1);
         lcd.print("PMS10.0(ug/m3): ");
-        lcd.print(sensorData.pms10_0);
+        lcd.print(sensorData.pm10_0);
         if(millis() - prevTime >= 4000)
         {
           displayState = displayState1;
@@ -297,8 +306,8 @@ void NodeTask(void* pvParameters)
         sensorData.pinAState = mni.DecodeData(MNI::RxDataId::PIN_A_STATE);
         sensorData.pinBState = mni.DecodeData(MNI::RxDataId::PIN_B_STATE);
         sensorData.O3 = mni.DecodeData(MNI::RxDataId::O3) / 100.0;
-        sensorData.pms2_5 = mni.DecodeData(MNI::RxDataId::PMS2_5);
-        sensorData.pms10_0 = mni.DecodeData(MNI::RxDataId::PMS10_0);
+        sensorData.pm2_5 = mni.DecodeData(MNI::RxDataId::PMS2_5);
+        sensorData.pm10_0 = mni.DecodeData(MNI::RxDataId::PMS10_0);
         //Debug
         Serial.print("Temperature: ");
         Serial.println(sensorData.temp);
@@ -317,9 +326,9 @@ void NodeTask(void* pvParameters)
         Serial.print("O3 conc: ");
         Serial.println(sensorData.O3);
         Serial.print("PM 2.5 (ug/m3): ");
-        Serial.println(sensorData.pms2_5);
+        Serial.println(sensorData.pm2_5);
         Serial.print("PM 10.0 (ug/m3): ");
-        Serial.println(sensorData.pms10_0);
+        Serial.println(sensorData.pm10_0);
         //Place sensor data in the Node-Application Queue
         if(xQueueSend(nodeToAppQueue,&sensorData,0) == pdPASS)
         {
@@ -344,14 +353,20 @@ void NodeTask(void* pvParameters)
 }
 
 
-void MqttTask(void* pvParameters)
+void DataToCloudTask(void* pvParameters)
 {
   static SensorData_t sensorData;
   static WiFiClient wifiClient;
   static PubSubClient mqttClient(wifiClient);
-  char prevSubTopic[SIZE_TOPIC] = {0};
+  ThingSpeak.begin(wifiClient);
+  //Previously stored data in ESP32's flash
+  char prevPubTopic[SIZE_TOPIC] = {0};
+  char prevChannelId[SIZE_CHANNEL_ID] = {0};
+  char prevApiKey[SIZE_API_KEY] = {0};
+  
   const char *mqttBroker = "broker.hivemq.com";
   const uint16_t mqttPort = 1883;
+  uint32_t prevUploadTime = millis();
 
   while(1)
   {
@@ -359,7 +374,9 @@ void MqttTask(void* pvParameters)
     {       
       if(!mqttClient.connected())
       {
-        preferences.getBytes("0",prevSubTopic,SIZE_TOPIC);
+        preferences.getBytes("0",prevPubTopic,SIZE_TOPIC);
+        preferences.getBytes("1",prevChannelId,SIZE_CHANNEL_ID);
+        preferences.getBytes("2",prevApiKey,SIZE_API_KEY);
         mqttClient.setServer(mqttBroker,mqttPort);
         while(!mqttClient.connected())
         {
@@ -376,15 +393,38 @@ void MqttTask(void* pvParameters)
         if(xQueueReceive(nodeToMqttQueue,&sensorData,0) == pdPASS)
         {
           Serial.println("--MQTT Task received data from node task\n");
-          String dataToPublish = "TEMP: " + String(sensorData.temp) + " C\n" +
-                                 "HUM: " + String(sensorData.hum) + " %\n" +
-                                 "NO2 conc: " + String(sensorData.NO2) + " PPM\n" +
-                                 "NH3 conc: " + String(sensorData.NH3) + " PPM\n" +
-                                 "CO conc: " + String(sensorData.CO) + " PPM\n" +
-                                 "O3 conc: " + String(sensorData.O3) + " PPM\n" +
-                                 "PMS2.5: " + String(sensorData.pms2_5) + "ug/m3\n" +
-                                 "PMS10.0: " + String(sensorData.pms10_0) + "ug/m3\n";
-          mqttClient.publish(prevSubTopic,dataToPublish.c_str());
+          if(millis() - prevUploadTime >= 20000)
+          {//Sends data to Thingspeak and MQTT every 20 seconds
+            String dataToPublish = "TEMP: " + String(sensorData.temp) + " C\n" +
+                                   "HUM: " + String(sensorData.hum) + " %\n" +
+                                   "NO2 conc: " + String(sensorData.NO2) + " PPM\n" +
+                                   "NH3 conc: " + String(sensorData.NH3) + " PPM\n" +
+                                   "CO conc: " + String(sensorData.CO) + " PPM\n" +
+                                   "O3 conc: " + String(sensorData.O3) + " PPM\n" +
+                                   "PMS2.5: " + String(sensorData.pm2_5) + "ug/m3\n" +
+                                   "PMS10.0: " + String(sensorData.pm10_0) + "ug/m3\n";
+            mqttClient.publish(prevPubTopic,dataToPublish.c_str());
+            //Encode data to be sent to Thingspeak
+            ThingSpeak.setField(1,sensorData.temp);
+            ThingSpeak.setField(2,sensorData.hum);
+            ThingSpeak.setField(3,sensorData.NO2);
+            ThingSpeak.setField(4,sensorData.NH3);
+            ThingSpeak.setField(5,sensorData.CO);
+            ThingSpeak.setField(6,sensorData.pm2_5);
+            ThingSpeak.setField(7,sensorData.pm10_0);
+            //Convert channel ID from string to Integer
+            String idStr = String(prevChannelId);
+            uint32_t idInt = idStr.toInt();
+            if(ThingSpeak.writeFields(idInt,prevApiKey) == HTTP_CODE_OK)
+            {
+              Serial.println("SUCCESS: Data sent to ThingspeaK");
+            }
+            else
+            {
+              Serial.println("ERROR: Sending to Thingspeak failed");
+            }
+            prevUploadTime = millis();
+          }
         }
       }
     }
@@ -393,7 +433,15 @@ void MqttTask(void* pvParameters)
 
 void WiFiManagerCallback(void)
 {
-  char prevSubTopic[SIZE_TOPIC] = {0};
-  preferences.getBytes("0",prevSubTopic,SIZE_TOPIC);
-  StoreNewFlashData("0",subTopic.getValue(),prevSubTopic,SIZE_TOPIC);
+  char prevPubTopic[SIZE_TOPIC] = {0};
+  char prevChannelId[SIZE_CHANNEL_ID] = {0};
+  char prevApiKey[SIZE_API_KEY] = {0};
+  //Get data stored previously in flash memory
+  preferences.getBytes("0",prevPubTopic,SIZE_TOPIC);
+  preferences.getBytes("1",prevChannelId,SIZE_CHANNEL_ID);
+  preferences.getBytes("2",prevApiKey,SIZE_API_KEY);
+  //Store new data in flash memory if its different from the previously stored ones
+  StoreNewFlashData("0",pubTopic.getValue(),prevPubTopic,SIZE_TOPIC);
+  StoreNewFlashData("1",channelId.getValue(),prevChannelId,SIZE_CHANNEL_ID);
+  StoreNewFlashData("2",apiKey.getValue(),prevApiKey,SIZE_API_KEY);
 }
