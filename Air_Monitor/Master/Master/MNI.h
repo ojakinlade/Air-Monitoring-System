@@ -7,7 +7,7 @@
 class MNI
 {
   private:
-    enum BufferSize{TX = 2, RX = 22};
+    enum BufferSize{TX = 2, RX = 20};
     HardwareSerial* port;
     uint8_t rxDataCounter;
     uint8_t txBuffer[BufferSize::TX];
@@ -26,9 +26,8 @@ class MNI
       CO = 10,
       PIN_A_STATE = 12,
       PIN_B_STATE = 14,
-      O3 = 16,
-      PMS2_5 = 18,
-      PMS10_0 = 20
+      PMS2_5 = 16,
+      PMS10_0 = 18
     };
     
     MNI(HardwareSerial* serial, 

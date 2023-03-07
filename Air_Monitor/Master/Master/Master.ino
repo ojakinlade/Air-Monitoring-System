@@ -30,7 +30,6 @@ typedef struct
   uint16_t CO;
   uint16_t pinAState;
   uint16_t pinBState;
-  float O3;
   uint16_t pm2_5;
   uint16_t pm10_0;
 }SensorData_t;
@@ -239,10 +238,6 @@ void ApplicationTask(void* pvParameters)
         lcd.setCursor(0,2);
         lcd.print("Pin B: ");
         lcd.print(sensorData.pinBState);
-        lcd.setCursor(0,3);
-        lcd.print("O3 conc: ");
-        lcd.print(sensorData.O3);
-        lcd.print(" ppm");
         if(millis() - prevTime >= 4000)
         {
           displayState = displayState3;
@@ -305,7 +300,6 @@ void NodeTask(void* pvParameters)
         sensorData.CO = mni.DecodeData(MNI::RxDataId::CO);
         sensorData.pinAState = mni.DecodeData(MNI::RxDataId::PIN_A_STATE);
         sensorData.pinBState = mni.DecodeData(MNI::RxDataId::PIN_B_STATE);
-        sensorData.O3 = mni.DecodeData(MNI::RxDataId::O3) / 100.0;
         sensorData.pm2_5 = mni.DecodeData(MNI::RxDataId::PMS2_5);
         sensorData.pm10_0 = mni.DecodeData(MNI::RxDataId::PMS10_0);
         //Debug
@@ -323,8 +317,6 @@ void NodeTask(void* pvParameters)
         Serial.println(sensorData.pinAState);
         Serial.print("B: ");
         Serial.println(sensorData.pinBState);
-        Serial.print("O3 conc: ");
-        Serial.println(sensorData.O3);
         Serial.print("PM 2.5 (ug/m3): ");
         Serial.println(sensorData.pm2_5);
         Serial.print("PM 10.0 (ug/m3): ");
@@ -400,7 +392,6 @@ void DataToCloudTask(void* pvParameters)
                                    "NO2 conc: " + String(sensorData.NO2) + " PPM\n" +
                                    "NH3 conc: " + String(sensorData.NH3) + " PPM\n" +
                                    "CO conc: " + String(sensorData.CO) + " PPM\n" +
-                                   "O3 conc: " + String(sensorData.O3) + " PPM\n" +
                                    "PMS2.5: " + String(sensorData.pm2_5) + "ug/m3\n" +
                                    "PMS10.0: " + String(sensorData.pm10_0) + "ug/m3\n";
             mqttClient.publish(prevPubTopic,dataToPublish.c_str());
