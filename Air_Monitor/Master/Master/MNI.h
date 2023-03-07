@@ -26,8 +26,8 @@ class MNI
       CO = 10,
       PIN_A_STATE = 12,
       PIN_B_STATE = 14,
-      PMS2_5 = 16,
-      PMS10_0 = 18
+      PM2_5 = 16,
+      PM10_0 = 18
     };
     
     MNI(HardwareSerial* serial, 

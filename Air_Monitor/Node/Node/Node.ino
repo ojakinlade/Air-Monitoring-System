@@ -17,9 +17,8 @@ typedef struct
   uint16_t CO;
   uint16_t pinAState;
   uint16_t pinBState;
-  float O3;
-  uint16_t pms2_5;
-  uint16_t pms10_0;
+  uint16_t pm2_5;
+  uint16_t pm10_0;
 }SensorData_t;
 
 namespace Pin
@@ -55,10 +54,6 @@ void setup() {
   Serial.println("Air Monitoring System...");
   pmsSerial.begin(9600);
   bmeSensor.begin(BME280_ADDR);
-  //MQ131.begin(2,Pin::O3Sensor,LOW_CONCENTRATION,1000000);
-//  Serial.println("Calibrating.......");
-//  MQ131.calibrate();
-//  Serial.println("Done Calibrating.");
 }
 
 void loop() {
@@ -72,9 +67,9 @@ void loop() {
       Get_SensorData(dataToSend); 
       //Debug
       Serial.print("PM 2.5 (ug/m3): ");
-      Serial.println(dataToSend.pms2_5);
+      Serial.println(dataToSend.pm2_5);
       Serial.print("PM 10.0 (ug/m3): ");
-      Serial.println(dataToSend.pms10_0);
+      Serial.println(dataToSend.pm10_0);
       
       mni.EncodeData(MNI::ACK,MNI::TxDataId::DATA_ACK);
       mni.EncodeData((dataToSend.temp * 100),MNI::TxDataId::TEMP);
@@ -84,9 +79,8 @@ void loop() {
       mni.EncodeData(dataToSend.CO,MNI::TxDataId::CO);
       mni.EncodeData(dataToSend.pinAState,MNI::TxDataId::PIN_A_STATE);
       mni.EncodeData(dataToSend.pinBState,MNI::TxDataId::PIN_B_STATE);
-      mni.EncodeData((dataToSend.O3 * 100),MNI::TxDataId::O3);
-      mni.EncodeData(dataToSend.pms2_5,MNI::TxDataId::PMS2_5);
-      mni.EncodeData(dataToSend.pms10_0,MNI::TxDataId::PMS10_0);
+      mni.EncodeData(dataToSend.pm2_5,MNI::TxDataId::PM2_5);
+      mni.EncodeData(dataToSend.pm10_0,MNI::TxDataId::PM10_0);
       mni.TransmitData();
     }
   }
@@ -105,10 +99,7 @@ void Get_SensorData(SensorData_t& data)
   pms.requestRead();
   if(pms.readUntil(pmsData))
   {
-    data.pms2_5 = pmsData.PM_AE_UG_2_5;
-    data.pms10_0 = pmsData.PM_AE_UG_10_0;
+    data.pm2_5 = pmsData.PM_AE_UG_2_5;
+    data.pm10_0 = pmsData.PM_AE_UG_10_0;
   }
-  
-//  MQ131.sample();
-//  data.O3 = MQ131.getO3(PPB);
 }

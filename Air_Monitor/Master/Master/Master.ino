@@ -80,7 +80,6 @@ void setup() {
   xTaskCreatePinnedToCore(ApplicationTask,"",30000,NULL,1,NULL,1);
   xTaskCreatePinnedToCore(NodeTask,"",30000,NULL,1,&nodeTaskHandle,1);
   xTaskCreatePinnedToCore(DataToCloudTask,"",7000,NULL,1,NULL,1);
-  //vTaskSuspend(&wifiTaskHandle);
 }
 
 void loop() {
@@ -272,7 +271,6 @@ void ApplicationTask(void* pvParameters)
 void NodeTask(void* pvParameters)
 {
   vTaskSuspend(NULL);
-  vTaskDelay(pdMS_TO_TICKS(3000));
   static MNI mni(&Serial2);
   static SensorData_t sensorData;
   uint32_t prevTime = millis();
@@ -300,8 +298,8 @@ void NodeTask(void* pvParameters)
         sensorData.CO = mni.DecodeData(MNI::RxDataId::CO);
         sensorData.pinAState = mni.DecodeData(MNI::RxDataId::PIN_A_STATE);
         sensorData.pinBState = mni.DecodeData(MNI::RxDataId::PIN_B_STATE);
-        sensorData.pm2_5 = mni.DecodeData(MNI::RxDataId::PMS2_5);
-        sensorData.pm10_0 = mni.DecodeData(MNI::RxDataId::PMS10_0);
+        sensorData.pm2_5 = mni.DecodeData(MNI::RxDataId::PM2_5);
+        sensorData.pm10_0 = mni.DecodeData(MNI::RxDataId::PM10_0);
         //Debug
         Serial.print("Temperature: ");
         Serial.println(sensorData.temp);
