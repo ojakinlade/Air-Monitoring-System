@@ -1,0 +1,15 @@
+NODE:
+1. PMS5003 (RX: 10, TX: 9)
+2. MP503 (A: 4, B: 5)
+3. MICS6814 (NO2: A0, NH3: A1, CO: A2)
+4. BME280 (SCL: A5, SDA: A4)
+5. MQ7 (VOUT: A3)
+6. NodeSerial(RX: 6, TX: 7)
+7. Buzzer (2)
+
+MASTER:
+1. LCD (SCL: 22, SDA: 21)
+2. Serial2(TX: 17, RX: 16)
+
+
+

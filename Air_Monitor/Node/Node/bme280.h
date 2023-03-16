@@ -2,6 +2,7 @@
 
 #include <Adafruit_BME280.h>
 
+
 /**
  * @brief Class for reading data from a BME280 sensor.
 */

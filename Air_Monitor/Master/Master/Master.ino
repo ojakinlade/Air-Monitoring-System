@@ -27,9 +27,7 @@ typedef struct
   float hum;
   uint16_t NO2;
   uint16_t NH3;
-  uint16_t CO;
-  uint16_t pinAState;
-  uint16_t pinBState;
+  float CO;
   uint16_t pm2_5;
   uint16_t pm10_0;
 }SensorData_t;
@@ -159,11 +157,10 @@ void ApplicationTask(void* pvParameters)
   //Startup message
   lcd.init();
   lcd.backlight();
+  lcd.setCursor(3,0);
   lcd.print(" AIR MONITOR");
   vTaskDelay(pdMS_TO_TICKS(1500));
   lcd.clear();
-  lcd.print("STATUS: ");
-  lcd.setCursor(0,1);
   lcd.print("LOADING...");
   vTaskDelay(pdMS_TO_TICKS(1500));
   lcd.clear();
@@ -172,7 +169,6 @@ void ApplicationTask(void* pvParameters)
   //Simple FSM to periodically change parameters being displayed
   const uint8_t displayState1 = 0;
   const uint8_t displayState2 = 1;
-  const uint8_t displayState3 = 2;
   uint8_t displayState = displayState1;
   uint32_t prevTime = millis();
   while(1)
@@ -232,26 +228,13 @@ void ApplicationTask(void* pvParameters)
         lcd.print(sensorData.CO);
         lcd.print(" ppm");
         lcd.setCursor(0,1);
-        lcd.print("Pin A: ");
-        lcd.print(sensorData.pinAState);
-        lcd.setCursor(0,2);
-        lcd.print("Pin B: ");
-        lcd.print(sensorData.pinBState);
-        if(millis() - prevTime >= 4000)
-        {
-          displayState = displayState3;
-          prevTime = millis();
-          lcd.clear();
-        }
-        break;
-
-      case displayState3:
-        lcd.setCursor(0,0);
-        lcd.print("PMS2.5(ug/m3): ");
+        lcd.print("PM2.5(ug/m3): ");
         lcd.print(sensorData.pm2_5);
-        lcd.setCursor(0,1);
-        lcd.print("PMS10.0(ug/m3): ");
+        lcd.setCursor(0,2);
+        lcd.print("PM10(ug/m3): ");
         lcd.print(sensorData.pm10_0);
+        lcd.setCursor(0,3);
+        lcd.print("AQI: ");
         if(millis() - prevTime >= 4000)
         {
           displayState = displayState1;
@@ -295,9 +278,7 @@ void NodeTask(void* pvParameters)
         sensorData.hum = mni.DecodeData(MNI::RxDataId::HUM) / 100.0;
         sensorData.NO2 = mni.DecodeData(MNI::RxDataId::NO2);
         sensorData.NH3 = mni.DecodeData(MNI::RxDataId::NH3);
-        sensorData.CO = mni.DecodeData(MNI::RxDataId::CO);
-        sensorData.pinAState = mni.DecodeData(MNI::RxDataId::PIN_A_STATE);
-        sensorData.pinBState = mni.DecodeData(MNI::RxDataId::PIN_B_STATE);
+        sensorData.CO = mni.DecodeData(MNI::RxDataId::CO) / 100.0;
         sensorData.pm2_5 = mni.DecodeData(MNI::RxDataId::PM2_5);
         sensorData.pm10_0 = mni.DecodeData(MNI::RxDataId::PM10_0);
         //Debug
@@ -311,10 +292,6 @@ void NodeTask(void* pvParameters)
         Serial.println(sensorData.NH3);
         Serial.print("CO conc: ");
         Serial.println(sensorData.CO);
-        Serial.print("A: ");
-        Serial.println(sensorData.pinAState);
-        Serial.print("B: ");
-        Serial.println(sensorData.pinBState);
         Serial.print("PM 2.5 (ug/m3): ");
         Serial.println(sensorData.pm2_5);
         Serial.print("PM 10.0 (ug/m3): ");
