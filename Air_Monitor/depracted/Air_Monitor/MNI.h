@@ -25,7 +25,7 @@ class MNI
       NH3 = 8,
       CO = 10,
       PM2_5 = 12,
-      PM10 = 14
+      PM10_0 = 14
     };
     
     MNI(HardwareSerial* serial, 

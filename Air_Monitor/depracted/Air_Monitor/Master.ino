@@ -7,7 +7,6 @@
 #include <LiquidCrystal_I2C.h>
 #include <ThingSpeak.h>
 #include "MNI.h"
-#include "AQI_Calc.h"
 
 //Maximum number of characters for HiveMQ topic(s)
 #define SIZE_TOPIC      30
@@ -29,8 +28,8 @@ typedef struct
   uint16_t NO2;
   uint16_t NH3;
   float CO;
-  uint16_t PM2_5;
-  uint16_t PM10;
+  uint16_t pm2_5;
+  uint16_t pm10_0;
 }SensorData_t;
 
 //RTOS Handle(s)
@@ -153,12 +152,7 @@ void ApplicationTask(void* pvParameters)
 {
   LiquidCrystal_I2C lcd(0x27,20,4);
   static SensorData_t sensorData;
-  static AQI_Calc aqiCalc;
   bool isWifiTaskSuspended = false;
-  float AQI_PM10;
-  float AQI_PM2_5;
-  float AQI_CO;
-  float AQI_NO2;
 
   //Startup message
   lcd.init();
@@ -171,7 +165,7 @@ void ApplicationTask(void* pvParameters)
   vTaskDelay(pdMS_TO_TICKS(1500));
   lcd.clear();
   vTaskResume(nodeTaskHandle);
-                                                                            
+
   //Simple FSM to periodically change parameters being displayed
   const uint8_t displayState1 = 0;
   const uint8_t displayState2 = 1;
@@ -200,11 +194,6 @@ void ApplicationTask(void* pvParameters)
     {
       Serial.println("--Application task received data from Node task\n");
     }
-    //Compute AQI for the pollutants     
-    AQI_PM10 = aqiCalc.ComputeIndex(P_PM10,sensorData.PM10);
-    AQI_PM2_5 = aqiCalc.ComputeIndex(P_PM2_5,sensorData.PM2_5);
-    AQI_CO = aqiCalc.ComputeIndex(P_CO,sensorData.CO);
-    AQI_NO2 = aqiCalc.ComputeIndex(P_NO2,sensorData.NO2);
     //FSM[Displays the received sensor data received on the LCD]
     switch(displayState)
     {
@@ -240,10 +229,10 @@ void ApplicationTask(void* pvParameters)
         lcd.print(" ppm");
         lcd.setCursor(0,1);
         lcd.print("PM2.5(ug/m3): ");
-        lcd.print(sensorData.PM2_5);
+        lcd.print(sensorData.pm2_5);
         lcd.setCursor(0,2);
         lcd.print("PM10(ug/m3): ");
-        lcd.print(sensorData.PM10);
+        lcd.print(sensorData.pm10_0);
         lcd.setCursor(0,3);
         lcd.print("AQI: ");
         if(millis() - prevTime >= 4000)
@@ -290,8 +279,8 @@ void NodeTask(void* pvParameters)
         sensorData.NO2 = mni.DecodeData(MNI::RxDataId::NO2);
         sensorData.NH3 = mni.DecodeData(MNI::RxDataId::NH3);
         sensorData.CO = mni.DecodeData(MNI::RxDataId::CO) / 100.0;
-        sensorData.PM2_5 = mni.DecodeData(MNI::RxDataId::PM2_5);
-        sensorData.PM10 = mni.DecodeData(MNI::RxDataId::PM10);
+        sensorData.pm2_5 = mni.DecodeData(MNI::RxDataId::PM2_5);
+        sensorData.pm10_0 = mni.DecodeData(MNI::RxDataId::PM10_0);
         //Debug
         Serial.print("Temperature: ");
         Serial.println(sensorData.temp);
@@ -304,9 +293,9 @@ void NodeTask(void* pvParameters)
         Serial.print("CO conc: ");
         Serial.println(sensorData.CO);
         Serial.print("PM 2.5 (ug/m3): ");
-        Serial.println(sensorData.PM2_5);
-        Serial.print("PM 10 (ug/m3): ");
-        Serial.println(sensorData.PM10);
+        Serial.println(sensorData.pm2_5);
+        Serial.print("PM 10.0 (ug/m3): ");
+        Serial.println(sensorData.pm10_0);
         //Place sensor data in the Node-Application Queue
         if(xQueueSend(nodeToAppQueue,&sensorData,0) == pdPASS)
         {
@@ -378,8 +367,8 @@ void DataToCloudTask(void* pvParameters)
                                    "NO2 conc: " + String(sensorData.NO2) + " PPM\n" +
                                    "NH3 conc: " + String(sensorData.NH3) + " PPM\n" +
                                    "CO conc: " + String(sensorData.CO) + " PPM\n" +
-                                   "PM2.5: " + String(sensorData.PM2_5) + "ug/m3\n" +
-                                   "PM10: " + String(sensorData.PM10) + "ug/m3\n";
+                                   "PMS2.5: " + String(sensorData.pm2_5) + "ug/m3\n" +
+                                   "PMS10.0: " + String(sensorData.pm10_0) + "ug/m3\n";
             mqttClient.publish(prevPubTopic,dataToPublish.c_str());
             //Encode data to be sent to Thingspeak
             ThingSpeak.setField(1,sensorData.temp);
@@ -387,8 +376,8 @@ void DataToCloudTask(void* pvParameters)
             ThingSpeak.setField(3,sensorData.NO2);
             ThingSpeak.setField(4,sensorData.NH3);
             ThingSpeak.setField(5,sensorData.CO);
-            ThingSpeak.setField(6,sensorData.PM2_5);
-            ThingSpeak.setField(7,sensorData.PM10);
+            ThingSpeak.setField(6,sensorData.pm2_5);
+            ThingSpeak.setField(7,sensorData.pm10_0);
             //Convert channel ID from string to Integer
             String idStr = String(prevChannelId);
             uint32_t idInt = idStr.toInt();
