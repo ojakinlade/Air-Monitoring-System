@@ -9,8 +9,9 @@
 #include "MNI.h"
 #include "AQI_Calc.h"
 
-//Maximum number of characters for HiveMQ topic(s)
+//Maximum number of characters for HiveMQ parameters
 #define SIZE_TOPIC      30
+#define SIZE_CLIENT_ID  23
 //Maximum number of characters for Thingspeak credentials
 #define SIZE_CHANNEL_ID 30
 #define SIZE_API_KEY    50
@@ -19,6 +20,7 @@ WiFiManagerParameter pubTopic("0","HiveMQ Publish topic","",SIZE_TOPIC);
 //Define textboxes for Thingspeak credentials
 WiFiManagerParameter channelId("1","Thingspeak Channel ID","",SIZE_CHANNEL_ID);
 WiFiManagerParameter apiKey("2","Thingspeak API key","",SIZE_API_KEY);
+WiFiManagerParameter clientId("3","MQTT Client ID","",SIZE_CLIENT_ID);
 Preferences preferences; //for accessing ESP32 flash memory
 
 //Type(s)
@@ -33,6 +35,17 @@ typedef struct
   uint16_t PM10;
 }SensorData_t;
 
+typedef struct
+{
+  char temp[3];
+  char hum[3];
+  char NO2[3];
+  char NH3[3];
+  char CO[3];
+  char PM2_5[3];
+  char PM10[3];
+}mqttData_t;
+
 //RTOS Handle(s)
 TaskHandle_t wifiTaskHandle;
 TaskHandle_t nodeTaskHandle;
@@ -40,7 +53,7 @@ QueueHandle_t nodeToAppQueue;
 QueueHandle_t nodeToMqttQueue;
 
 /**
- * @brief Store new data to specifiedlocation in ESP32's flash memory 
+ * @brief Store new data to specified location in ESP32's flash memory 
  * if the new data is different  from the old data.
 */
 static void StoreNewFlashData(const char* flashLoc,const char* newData,
@@ -99,6 +112,7 @@ void WiFiManagementTask(void* pvParameters)
   wm.addParameter(&pubTopic);
   wm.addParameter(&channelId);
   wm.addParameter(&apiKey);
+  wm.addParameter(&clientId);
   wm.setConfigPortalBlocking(false);
   wm.setSaveParamsCallback(WiFiManagerCallback); 
   //Auto-connect to previous network if available.
@@ -341,9 +355,12 @@ void DataToCloudTask(void* pvParameters)
   char prevPubTopic[SIZE_TOPIC] = {0};
   char prevChannelId[SIZE_CHANNEL_ID] = {0};
   char prevApiKey[SIZE_API_KEY] = {0};
+  char prevClientId[SIZE_CLIENT_ID] = {0};
   
   const char *mqttBroker = "broker.hivemq.com";
   const uint16_t mqttPort = 1883;
+
+  char dataToPublish[8] = {0};
   uint32_t prevUploadTime = millis();
 
   while(1)
@@ -355,11 +372,11 @@ void DataToCloudTask(void* pvParameters)
         preferences.getBytes("0",prevPubTopic,SIZE_TOPIC);
         preferences.getBytes("1",prevChannelId,SIZE_CHANNEL_ID);
         preferences.getBytes("2",prevApiKey,SIZE_API_KEY);
+        preferences.getBytes("3",prevClientId,SIZE_CLIENT_ID);
         mqttClient.setServer(mqttBroker,mqttPort);
         while(!mqttClient.connected())
         {
-          String clientID = String(WiFi.macAddress());
-          if(mqttClient.connect(clientID.c_str()))
+          if(mqttClient.connect(prevClientId))
           {
             Serial.println("Connected to HiveMQ broker");
           }
@@ -371,37 +388,40 @@ void DataToCloudTask(void* pvParameters)
         if(xQueueReceive(nodeToMqttQueue,&sensorData,0) == pdPASS)
         {
           Serial.println("--MQTT Task received data from node task\n");
-          if(millis() - prevUploadTime >= 20000)
-          {//Sends data to Thingspeak and MQTT every 20 seconds
-            String dataToPublish = "TEMP: " + String(sensorData.temp) + " C\n" +
-                                   "HUM: " + String(sensorData.hum) + " %\n" +
-                                   "NO2 conc: " + String(sensorData.NO2) + " PPM\n" +
-                                   "NH3 conc: " + String(sensorData.NH3) + " PPM\n" +
-                                   "CO conc: " + String(sensorData.CO) + " PPM\n" +
-                                   "PM2.5: " + String(sensorData.PM2_5) + "ug/m3\n" +
-                                   "PM10: " + String(sensorData.PM10) + "ug/m3\n";
-            mqttClient.publish(prevPubTopic,dataToPublish.c_str());
-            //Encode data to be sent to Thingspeak
-            ThingSpeak.setField(1,sensorData.temp);
-            ThingSpeak.setField(2,sensorData.hum);
-            ThingSpeak.setField(3,sensorData.NO2);
-            ThingSpeak.setField(4,sensorData.NH3);
-            ThingSpeak.setField(5,sensorData.CO);
-            ThingSpeak.setField(6,sensorData.PM2_5);
-            ThingSpeak.setField(7,sensorData.PM10);
-            //Convert channel ID from string to Integer
-            String idStr = String(prevChannelId);
-            uint32_t idInt = idStr.toInt();
-            if(ThingSpeak.writeFields(idInt,prevApiKey) == HTTP_CODE_OK)
-            {
-              Serial.println("SUCCESS: Data sent to ThingspeaK");
-            }
-            else
-            {
-              Serial.println("ERROR: Sending to Thingspeak failed");
-            }
-            prevUploadTime = millis();
+        }
+        //Send data to Thingspeak and MQTT every 20 seconds
+        if(millis() - prevUploadTime >= 20000)
+        {
+          //Encode data to send to MQTT
+//          strcat()
+//          String dataToPublish = "TEMP: " + String(sensorData.temp) + " C\n" +
+//                                 "HUM: " + String(sensorData.hum) + " %\n" +
+//                                 "NO2 conc: " + String(sensorData.NO2) + " PPM\n" +
+//                                 "NH3 conc: " + String(sensorData.NH3) + " PPM\n" +
+//                                 "CO conc: " + String(sensorData.CO) + " PPM\n" +
+//                                 "PM2.5: " + String(sensorData.PM2_5) + "ug/m3\n" +
+//                                 "PM10: " + String(sensorData.PM10) + "ug/m3\n";
+          mqttClient.publish(prevPubTopic,dataToPublish);
+          //Encode data to be sent to Thingspeak
+          ThingSpeak.setField(1,sensorData.temp);
+          ThingSpeak.setField(2,sensorData.hum);
+          ThingSpeak.setField(3,sensorData.NO2);
+          ThingSpeak.setField(4,sensorData.NH3);
+          ThingSpeak.setField(5,sensorData.CO);
+          ThingSpeak.setField(6,sensorData.PM2_5);
+          ThingSpeak.setField(7,sensorData.PM10);
+          //Convert channel ID from string to Integer
+          String idStr = String(prevChannelId);
+          uint32_t idInt = idStr.toInt();
+          if(ThingSpeak.writeFields(idInt,prevApiKey) == HTTP_CODE_OK)
+          {
+            Serial.println("SUCCESS: Data sent to ThingspeaK");
           }
+          else
+          {
+            Serial.println("ERROR: Sending to Thingspeak failed");
+          }
+          prevUploadTime = millis();
         }
       }
     }
@@ -413,12 +433,15 @@ void WiFiManagerCallback(void)
   char prevPubTopic[SIZE_TOPIC] = {0};
   char prevChannelId[SIZE_CHANNEL_ID] = {0};
   char prevApiKey[SIZE_API_KEY] = {0};
+  char prevClientId[SIZE_CLIENT_ID] = {0};
   //Get data stored previously in flash memory
   preferences.getBytes("0",prevPubTopic,SIZE_TOPIC);
   preferences.getBytes("1",prevChannelId,SIZE_CHANNEL_ID);
   preferences.getBytes("2",prevApiKey,SIZE_API_KEY);
+  preferences.getBytes("3",prevClientId,SIZE_CLIENT_ID);
   //Store new data in flash memory if its different from the previously stored ones
   StoreNewFlashData("0",pubTopic.getValue(),prevPubTopic,SIZE_TOPIC);
   StoreNewFlashData("1",channelId.getValue(),prevChannelId,SIZE_CHANNEL_ID);
   StoreNewFlashData("2",apiKey.getValue(),prevApiKey,SIZE_API_KEY);
+  StoreNewFlashData("3",clientId.getValue(),prevClientId,SIZE_CLIENT_ID);
 }

@@ -1,7 +1,11 @@
 #include <Arduino.h>
 #include "AQI_Calc.h"
 
+/**
+ * @brief Constructor for the AQI_Calc class.
+*/
 AQI_Calc::AQI_Calc(void)
+  //Assign the range and breakpoint for each pollutant
   : PM10 {{0,54,0,50},{55,154,51,100},
           {155,254,101,150},{255,354,151,200},
           {355,424,201,300},{425,504,301,400},
@@ -26,6 +30,12 @@ AQI_Calc::AQI_Calc(void)
   Pollutant[P_NO2] = NO2;
 }
 
+/**
+ * @brief Method to get the AQI level of a pollutant
+ * @param pollutant Pollutant for which the AQI level is to be calculated
+ * @param pollutantConc Concentration of the pollutant
+ * @return AQI level of the pollutant
+*/
 AQI_LEVEL AQI_Calc::GetAQILevel(POLLUTANTS pollutant,uint16_t pollutantConc)
 {
   AQI_LEVEL level = INVALID;
@@ -39,8 +49,7 @@ AQI_LEVEL AQI_Calc::GetAQILevel(POLLUTANTS pollutant,uint16_t pollutantConc)
           level = (AQI_LEVEL)i;
         }
       }
-    break;
-    
+    break;   
     case P_PM2_5:
       for(uint8_t i = 0; i < NO_OF_AQI_LEVELS; i++)
       {
@@ -50,7 +59,6 @@ AQI_LEVEL AQI_Calc::GetAQILevel(POLLUTANTS pollutant,uint16_t pollutantConc)
         }
       }
     break;
-
     case P_CO:
       for(uint8_t i = 0; i < NO_OF_AQI_LEVELS; i++)
       {
@@ -60,7 +68,6 @@ AQI_LEVEL AQI_Calc::GetAQILevel(POLLUTANTS pollutant,uint16_t pollutantConc)
         }
       }
     break;
-
     case P_NO2:
       for(uint8_t i = 0; i < NO_OF_AQI_LEVELS; i++)
       {
@@ -74,6 +81,12 @@ AQI_LEVEL AQI_Calc::GetAQILevel(POLLUTANTS pollutant,uint16_t pollutantConc)
   return level;
 }
 
+/**
+ * @brief Method to get the AQI Index of a pollutant
+ * @param pollutant Pollutant for which the AQI level is to be calculated
+ * @param pollutantConc Concentration of the pollutant
+ * @return AQI Index of the pollutant
+*/
 float AQI_Calc::ComputeIndex(POLLUTANTS pollutant,uint16_t pollutantConc)
 {
   AQI_LEVEL level;
@@ -82,26 +95,27 @@ float AQI_Calc::ComputeIndex(POLLUTANTS pollutant,uint16_t pollutantConc)
   {
     case P_PM10:
       PM10[level].Index = (pollutantConc - PM10[level].BP_Low)*
-                    ((PM10[level].I_High - PM10[level].I_Low)/(PM10[level].BP_High - PM10[level].BP_Low)) +
-                     PM10[level].I_Low;
+                          ((PM10[level].I_High - PM10[level].I_Low)/
+                          (PM10[level].BP_High - PM10[level].BP_Low)) +
+                           PM10[level].I_Low;
     break;
-
     case P_PM2_5:
       PM2_5[level].Index = (pollutantConc - PM2_5[level].BP_Low)*
-                    ((PM2_5[level].I_High - PM2_5[level].I_Low)/(PM2_5[level].BP_High - PM2_5[level].BP_Low)) +
-                     PM2_5[level].I_Low;
+                           ((PM2_5[level].I_High - PM2_5[level].I_Low)/
+                           (PM2_5[level].BP_High - PM2_5[level].BP_Low)) +
+                            PM2_5[level].I_Low;
     break;
-
     case P_CO:
       CO[level].Index = (pollutantConc - CO[level].BP_Low)*
-                    ((CO[level].I_High - CO[level].I_Low)/(CO[level].BP_High - CO[level].BP_Low)) +
-                     CO[level].I_Low;
+                        ((CO[level].I_High - CO[level].I_Low)/
+                        (CO[level].BP_High - CO[level].BP_Low)) +
+                         CO[level].I_Low;
     break;
-
     case P_NO2:
       NO2[level].Index = (pollutantConc - NO2[level].BP_Low)*
-                    ((NO2[level].I_High - NO2[level].I_Low)/(NO2[level].BP_High - NO2[level].BP_Low)) +
-                     NO2[level].I_Low;
+                         ((NO2[level].I_High - NO2[level].I_Low)/
+                         (NO2[level].BP_High - NO2[level].BP_Low)) +
+                          NO2[level].I_Low;
     break;
   }
   return Pollutant[pollutant][level].Index;

@@ -3,6 +3,10 @@
 #define NO_OF_AQI_LEVELS  7
 #define NO_OF_POLLUTANTS  4
 
+/**
+ * @brief Struct to hold range and breakpoint values
+ * of a pollutant
+*/
 typedef struct
 {
   float BP_Low;
