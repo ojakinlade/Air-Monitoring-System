@@ -36,7 +36,7 @@ AQI_Calc::AQI_Calc(void)
  * @param pollutantConc Concentration of the pollutant
  * @return AQI level of the pollutant
 */
-AQI_LEVEL AQI_Calc::GetAQILevel(POLLUTANTS pollutant,uint16_t pollutantConc)
+AQI_LEVEL AQI_Calc::GetAQILevel(POLLUTANTS pollutant,float pollutantConc)
 {
   AQI_LEVEL level = INVALID;
   switch(pollutant)
@@ -87,7 +87,7 @@ AQI_LEVEL AQI_Calc::GetAQILevel(POLLUTANTS pollutant,uint16_t pollutantConc)
  * @param pollutantConc Concentration of the pollutant
  * @return AQI Index of the pollutant
 */
-float AQI_Calc::ComputeIndex(POLLUTANTS pollutant,uint16_t pollutantConc)
+float AQI_Calc::ComputeIndex(POLLUTANTS pollutant,float pollutantConc)
 {
   AQI_LEVEL level;
   level = AQI_Calc::GetAQILevel(pollutant,pollutantConc);

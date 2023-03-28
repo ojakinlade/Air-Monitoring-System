@@ -28,10 +28,10 @@ class AQI_Calc
     AQI_Param_t PM2_5[NO_OF_AQI_LEVELS];
     AQI_Param_t CO[NO_OF_AQI_LEVELS];
     AQI_Param_t NO2[NO_OF_AQI_LEVELS];
-    AQI_LEVEL GetAQILevel(POLLUTANTS pollutant,uint16_t pollutantConc);
+    AQI_LEVEL GetAQILevel(POLLUTANTS pollutant,float pollutantConc);
     AQI_Param_t* Pollutant[NO_OF_POLLUTANTS];
 
   public:
     AQI_Calc(void);
-    float ComputeIndex(POLLUTANTS pollutant,uint16_t pollutantConc);
+    float ComputeIndex(POLLUTANTS pollutant,float pollutantConc);
 };

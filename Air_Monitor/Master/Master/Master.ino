@@ -28,7 +28,7 @@ typedef struct
 {
   float temp;
   float hum;
-  uint16_t NO2;
+  float NO2;
   uint16_t NH3;
   float CO;
   uint16_t PM2_5;
@@ -37,13 +37,13 @@ typedef struct
 
 typedef struct
 {
-  char temp[3];
-  char hum[3];
-  char NO2[3];
-  char NH3[3];
-  char CO[3];
-  char PM2_5[3];
-  char PM10[3];
+  char temp[10];
+  char hum[10];
+  char NO2[10];
+  char NH3[10];
+  char CO[10];
+  char PM2_5[10];
+  char PM10[10];
 }mqttData_t;
 
 //RTOS Handle(s)
@@ -51,6 +51,20 @@ TaskHandle_t wifiTaskHandle;
 TaskHandle_t nodeTaskHandle;
 QueueHandle_t nodeToAppQueue;
 QueueHandle_t nodeToMqttQueue;
+
+
+/**
+ * @brief
+ * @param
+ * @param
+*/
+void ConvStrToInt(char* str, uint32_t* integer)
+{
+  for(uint32_t i = 0; str[i] != '\0'; i++)
+  {
+    *integer = *integer * 10 + (str[i] - 48);
+  }
+}
 
 /**
  * @brief Store new data to specified location in ESP32's flash memory 
@@ -189,6 +203,7 @@ void ApplicationTask(void* pvParameters)
   //Simple FSM to periodically change parameters being displayed
   const uint8_t displayState1 = 0;
   const uint8_t displayState2 = 1;
+  const uint8_t displayState3 = 2;
   uint8_t displayState = displayState1;
   uint32_t prevTime = millis();
   while(1)
@@ -259,7 +274,29 @@ void ApplicationTask(void* pvParameters)
         lcd.print("PM10(ug/m3): ");
         lcd.print(sensorData.PM10);
         lcd.setCursor(0,3);
-        lcd.print("AQI: ");
+        lcd.print("NO2 AQI: ");
+        lcd.print(AQI_NO2);
+        if(millis() - prevTime >= 4000)
+        {
+          displayState = displayState3;
+          prevTime = millis();
+          lcd.clear();
+        }
+        break;
+
+      case displayState3:
+        lcd.setCursor(0,0);
+        lcd.print("CO AQI: ");
+        lcd.print(AQI_CO);
+        lcd.setCursor(0,1);
+        lcd.print("PM2.5 AQI: ");
+        lcd.print(AQI_PM2_5);
+        lcd.setCursor(0,2);
+        lcd.print("PM10 AQI: ");
+        lcd.print(AQI_PM10);
+        lcd.setCursor(0,3);
+        lcd.print("Actual AQI: ");
+        lcd.print("xxxxx");
         if(millis() - prevTime >= 4000)
         {
           displayState = displayState1;
@@ -301,7 +338,7 @@ void NodeTask(void* pvParameters)
         Serial.println("--Received serial data from node\n");
         sensorData.temp = mni.DecodeData(MNI::RxDataId::TEMP) / 100.0;
         sensorData.hum = mni.DecodeData(MNI::RxDataId::HUM) / 100.0;
-        sensorData.NO2 = mni.DecodeData(MNI::RxDataId::NO2);
+        sensorData.NO2 = mni.DecodeData(MNI::RxDataId::NO2) / 100.0;
         sensorData.NH3 = mni.DecodeData(MNI::RxDataId::NH3);
         sensorData.CO = mni.DecodeData(MNI::RxDataId::CO) / 100.0;
         sensorData.PM2_5 = mni.DecodeData(MNI::RxDataId::PM2_5);
@@ -348,6 +385,7 @@ void NodeTask(void* pvParameters)
 void DataToCloudTask(void* pvParameters)
 {
   static SensorData_t sensorData;
+  static mqttData_t mqttData;
   static WiFiClient wifiClient;
   static PubSubClient mqttClient(wifiClient);
   ThingSpeak.begin(wifiClient);
@@ -360,7 +398,8 @@ void DataToCloudTask(void* pvParameters)
   const char *mqttBroker = "broker.hivemq.com";
   const uint16_t mqttPort = 1883;
 
-  char dataToPublish[8] = {0};
+  char dataToPublish[250] = {0};
+  uint32_t idInt = 0;
   uint32_t prevUploadTime = millis();
 
   while(1)
@@ -393,7 +432,34 @@ void DataToCloudTask(void* pvParameters)
         if(millis() - prevUploadTime >= 20000)
         {
           //Encode data to send to MQTT
-//          strcat()
+          sprintf(mqttData.temp,"%f",sensorData.temp);
+          sprintf(mqttData.hum,"%f",sensorData.hum);
+          sprintf(mqttData.NO2,"%f",sensorData.NO2);
+          sprintf(mqttData.NH3,"%d",sensorData.NH3);
+          sprintf(mqttData.CO,"%f",sensorData.CO);
+          sprintf(mqttData.PM2_5,"%d",sensorData.PM2_5);
+          sprintf(mqttData.PM10,"%d",sensorData.PM10);
+          strcat(dataToPublish,"TEMP: ");
+          strcat(dataToPublish,mqttData.temp);
+          strcat(dataToPublish," C\n");
+          strcat(dataToPublish,"HUM: ");
+          strcat(dataToPublish,mqttData.hum);
+          strcat(dataToPublish," %\n");
+          strcat(dataToPublish,"NO2 conc: ");
+          strcat(dataToPublish,mqttData.NO2);
+          strcat(dataToPublish," PPM\n");
+          strcat(dataToPublish,"NH3 conc: ");
+          strcat(dataToPublish,mqttData.NH3);
+          strcat(dataToPublish," PPM\n");
+          strcat(dataToPublish,"CO conc: ");
+          strcat(dataToPublish,mqttData.CO);
+          strcat(dataToPublish," PPM\n");
+          strcat(dataToPublish,"PM2.5: ");
+          strcat(dataToPublish,mqttData.PM2_5);
+          strcat(dataToPublish," ug/m3\n");
+          strcat(dataToPublish,"PM10: ");
+          strcat(dataToPublish,mqttData.PM10);
+          strcat(dataToPublish," ug/m3\n");
 //          String dataToPublish = "TEMP: " + String(sensorData.temp) + " C\n" +
 //                                 "HUM: " + String(sensorData.hum) + " %\n" +
 //                                 "NO2 conc: " + String(sensorData.NO2) + " PPM\n" +
@@ -402,6 +468,8 @@ void DataToCloudTask(void* pvParameters)
 //                                 "PM2.5: " + String(sensorData.PM2_5) + "ug/m3\n" +
 //                                 "PM10: " + String(sensorData.PM10) + "ug/m3\n";
           mqttClient.publish(prevPubTopic,dataToPublish);
+          //Clear buffer after publishing
+          memset(dataToPublish,'\0',256);
           //Encode data to be sent to Thingspeak
           ThingSpeak.setField(1,sensorData.temp);
           ThingSpeak.setField(2,sensorData.hum);
@@ -411,8 +479,7 @@ void DataToCloudTask(void* pvParameters)
           ThingSpeak.setField(6,sensorData.PM2_5);
           ThingSpeak.setField(7,sensorData.PM10);
           //Convert channel ID from string to Integer
-          String idStr = String(prevChannelId);
-          uint32_t idInt = idStr.toInt();
+          ConvStrToInt(prevChannelId,&idInt);
           if(ThingSpeak.writeFields(idInt,prevApiKey) == HTTP_CODE_OK)
           {
             Serial.println("SUCCESS: Data sent to ThingspeaK");

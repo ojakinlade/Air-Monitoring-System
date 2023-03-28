@@ -12,7 +12,7 @@ typedef struct
 {
   float temp;
   float hum;
-  uint16_t NO2;
+  float NO2;
   uint16_t NH3;
   float CO;
   uint16_t pinAState;
@@ -97,7 +97,7 @@ void loop() {
       mni.EncodeData(MNI::ACK,MNI::TxDataId::DATA_ACK);
       mni.EncodeData((dataToSend.temp * 100),MNI::TxDataId::TEMP);
       mni.EncodeData((dataToSend.hum * 100),MNI::TxDataId::HUM);
-      mni.EncodeData(dataToSend.NO2,MNI::TxDataId::NO2);
+      mni.EncodeData((dataToSend.NO2 * 100),MNI::TxDataId::NO2);
       mni.EncodeData(dataToSend.NH3,MNI::TxDataId::NH3);
       mni.EncodeData((dataToSend.CO * 100),MNI::TxDataId::CO);
       mni.EncodeData(dataToSend.pm2_5,MNI::TxDataId::PM2_5);

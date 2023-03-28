@@ -32,7 +32,7 @@ uint16_t MICS6814::GetValue(uint8_t value)
   {
     case GAS::NO2:
       gasData = analogRead(this->NO2Pin);
-      return map(gasData,0,1023,0.05,10);
+      return map(gasData,0,1023,0.00,2.04);
     case GAS::NH3:
       gasData = analogRead(this->NH3Pin);
       return map(gasData,0,1023,1,500);
