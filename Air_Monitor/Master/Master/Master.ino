@@ -8,16 +8,15 @@
 #include <ThingSpeak.h>
 #include "MNI.h"
 #include "AQI_Calc.h"
+#include "numeric_lib.h"
 
-//Maximum number of characters for HiveMQ parameters
+//Maximum number of characters
 #define SIZE_TOPIC      30
 #define SIZE_CLIENT_ID  23
-//Maximum number of characters for Thingspeak credentials
 #define SIZE_CHANNEL_ID 30
 #define SIZE_API_KEY    50
-//Define textbox for MQTT publish topic
+
 WiFiManagerParameter pubTopic("0","HiveMQ Publish topic","",SIZE_TOPIC);
-//Define textboxes for Thingspeak credentials
 WiFiManagerParameter channelId("1","Thingspeak Channel ID","",SIZE_CHANNEL_ID);
 WiFiManagerParameter apiKey("2","Thingspeak API key","",SIZE_API_KEY);
 WiFiManagerParameter clientId("3","MQTT Client ID","",SIZE_CLIENT_ID);
@@ -432,12 +431,14 @@ void DataToCloudTask(void* pvParameters)
         if(millis() - prevUploadTime >= 20000)
         {
           //Encode data to send to MQTT
-          sprintf(mqttData.temp,"%f",sensorData.temp);
-          sprintf(mqttData.hum,"%f",sensorData.hum);
-          sprintf(mqttData.NO2,"%f",sensorData.NO2);
-          sprintf(mqttData.NH3,"%d",sensorData.NH3);
-          sprintf(mqttData.CO,"%f",sensorData.CO);
-          sprintf(mqttData.PM2_5,"%d",sensorData.PM2_5);
+          FloatToString(sensorData.temp,mqttData.temp,2);
+          FloatToString(sensorData.hum,mqttData.hum,2);
+          FloatToString(sensorData.NO2,mqttData.NO2,2);
+          IntegerToString(sensorData.NH3,mqttData.NH3);
+          FloatToString(sensorData.CO,mqttData.CO,2);
+          IntegerToString(sensorData.PM2_5,mqttData.PM2_5);
+          IntegerToString(sensorData.PM10,mqttData.PM10);
+          
           sprintf(mqttData.PM10,"%d",sensorData.PM10);
           strcat(dataToPublish,"TEMP: ");
           strcat(dataToPublish,mqttData.temp);
@@ -460,16 +461,10 @@ void DataToCloudTask(void* pvParameters)
           strcat(dataToPublish,"PM10: ");
           strcat(dataToPublish,mqttData.PM10);
           strcat(dataToPublish," ug/m3\n");
-//          String dataToPublish = "TEMP: " + String(sensorData.temp) + " C\n" +
-//                                 "HUM: " + String(sensorData.hum) + " %\n" +
-//                                 "NO2 conc: " + String(sensorData.NO2) + " PPM\n" +
-//                                 "NH3 conc: " + String(sensorData.NH3) + " PPM\n" +
-//                                 "CO conc: " + String(sensorData.CO) + " PPM\n" +
-//                                 "PM2.5: " + String(sensorData.PM2_5) + "ug/m3\n" +
-//                                 "PM10: " + String(sensorData.PM10) + "ug/m3\n";
+
           mqttClient.publish(prevPubTopic,dataToPublish);
           //Clear buffer after publishing
-          memset(dataToPublish,'\0',256);
+          memset(dataToPublish,'\0',strlen(dataToPublish));
           //Encode data to be sent to Thingspeak
           ThingSpeak.setField(1,sensorData.temp);
           ThingSpeak.setField(2,sensorData.hum);
