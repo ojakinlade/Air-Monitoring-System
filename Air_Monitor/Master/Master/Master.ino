@@ -48,6 +48,8 @@ typedef struct
 //RTOS Handle(s)
 TaskHandle_t wifiTaskHandle;
 TaskHandle_t nodeTaskHandle;
+TaskHandle_t applicationTaskHandle;
+TaskHandle_t dataToCloudTaskHandle;
 QueueHandle_t nodeToAppQueue;
 QueueHandle_t nodeToMqttQueue;
 
@@ -102,9 +104,9 @@ void setup() {
     Serial.println("Node-MQTT Queue creation failed");
   }  
   xTaskCreatePinnedToCore(WiFiManagementTask,"",7000,NULL,1,&wifiTaskHandle,1);
-  xTaskCreatePinnedToCore(ApplicationTask,"",30000,NULL,1,NULL,1);
+  xTaskCreatePinnedToCore(ApplicationTask,"",30000,NULL,1,&applicationTaskHandle,1);
   xTaskCreatePinnedToCore(NodeTask,"",30000,NULL,1,&nodeTaskHandle,1);
-  xTaskCreatePinnedToCore(DataToCloudTask,"",7000,NULL,1,NULL,1);
+  xTaskCreatePinnedToCore(DataToCloudTask,"",7000,NULL,1,&dataToCloudTaskHandle,1);
 }
 
 void loop() {
@@ -329,12 +331,18 @@ void NodeTask(void* pvParameters)
       Serial.println("Query Sent");
       prevTime = millis();
     }
+    
+    //Critical section
+    vTaskSuspend(wifiTaskHandle);
+    vTaskSuspend(applicationTaskHandle);
+    vTaskSuspend(dataToCloudTaskHandle);
     //Decode data received from node
     if(mni.ReceivedData())
     {
       if(mni.DecodeData(MNI::RxDataId::DATA_ACK) == MNI::ACK)
       {
         Serial.println("--Received serial data from node\n");
+        
         sensorData.temp = mni.DecodeData(MNI::RxDataId::TEMP) / 100.0;
         sensorData.hum = mni.DecodeData(MNI::RxDataId::HUM) / 100.0;
         sensorData.NO2 = mni.DecodeData(MNI::RxDataId::NO2) / 100.0;
@@ -342,21 +350,7 @@ void NodeTask(void* pvParameters)
         sensorData.CO = mni.DecodeData(MNI::RxDataId::CO) / 100.0;
         sensorData.PM2_5 = mni.DecodeData(MNI::RxDataId::PM2_5);
         sensorData.PM10 = mni.DecodeData(MNI::RxDataId::PM10);
-        //Debug
-        Serial.print("Temperature: ");
-        Serial.println(sensorData.temp);
-        Serial.print("Humidity: ");
-        Serial.println(sensorData.hum);
-        Serial.print("NO2 conc: ");
-        Serial.println(sensorData.NO2);
-        Serial.print("NH3 conc: ");
-        Serial.println(sensorData.NH3);
-        Serial.print("CO conc: ");
-        Serial.println(sensorData.CO);
-        Serial.print("PM 2.5 (ug/m3): ");
-        Serial.println(sensorData.PM2_5);
-        Serial.print("PM 10 (ug/m3): ");
-        Serial.println(sensorData.PM10);
+         
         //Place sensor data in the Node-Application Queue
         if(xQueueSend(nodeToAppQueue,&sensorData,0) == pdPASS)
         {
@@ -377,6 +371,9 @@ void NodeTask(void* pvParameters)
         }
       }
     }
+    vTaskResume(wifiTaskHandle);
+    vTaskResume(applicationTaskHandle);
+    vTaskResume(dataToCloudTaskHandle);
   }
 }
 
