@@ -436,7 +436,6 @@ void DataToCloudTask(void* pvParameters)
           IntegerToString(sensorData.PM2_5,mqttData.PM2_5);
           IntegerToString(sensorData.PM10,mqttData.PM10);
           
-          sprintf(mqttData.PM10,"%d",sensorData.PM10);
           strcat(dataToPublish,"TEMP: ");
           strcat(dataToPublish,mqttData.temp);
           strcat(dataToPublish," C\n");
@@ -462,6 +461,13 @@ void DataToCloudTask(void* pvParameters)
           mqttClient.publish(prevPubTopic,dataToPublish);
           //Clear buffer after publishing
           memset(dataToPublish,'\0',strlen(dataToPublish));
+          memset(mqttData.temp,'\0',strlen(mqttData.temp));
+          memset(mqttData.hum,'\0',strlen(mqttData.hum));
+          memset(mqttData.NO2,'\0',strlen(mqttData.NO2));
+          memset(mqttData.NH3,'\0',strlen(mqttData.NH3));
+          memset(mqttData.CO,'\0',strlen(mqttData.CO));
+          memset(mqttData.PM2_5,'\0',strlen(mqttData.PM2_5));
+          memset(mqttData.PM10,'\0',strlen(mqttData.PM10));
           //Encode data to be sent to Thingspeak
           ThingSpeak.setField(1,sensorData.temp);
           ThingSpeak.setField(2,sensorData.hum);
