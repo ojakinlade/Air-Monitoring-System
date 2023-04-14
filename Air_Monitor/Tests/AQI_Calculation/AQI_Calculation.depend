@@ -1,0 +1,11 @@
+# depslib dependency file v1.0
+1679835675 source:c:\users\user\documents\c\aqi_calculation\main.cpp
+	<iostream>
+	"AQI_Calc.h"
+
+1679835597 c:\users\user\documents\c\aqi_calculation\aqi_calc.h
+	<stdint.h>
+
+1679835549 source:c:\users\user\documents\c\aqi_calculation\aqi_calc.cpp
+	"AQI_Calc.h"
+
