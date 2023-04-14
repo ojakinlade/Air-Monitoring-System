@@ -4,7 +4,7 @@
 MQ7::MQ7(uint8_t analogPin)
 {
  this->analogPin = analogPin;
- this->R0 = 55000.0;
+ this->R0 = 40000.0;
 }
 
 float MQ7::GetPPM(void)

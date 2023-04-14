@@ -53,7 +53,6 @@ TaskHandle_t dataToCloudTaskHandle;
 QueueHandle_t nodeToAppQueue;
 QueueHandle_t nodeToMqttQueue;
 
-
 /**
  * @brief
  * @param
@@ -297,7 +296,18 @@ void ApplicationTask(void* pvParameters)
         lcd.print(AQI_PM10);
         lcd.setCursor(0,3);
         lcd.print("Actual AQI: ");
-        lcd.print("xxxxx");
+        if(AQI_PM2_5 >= AQI_PM10 && AQI_PM2_5 >= AQI_CO)
+        {
+          lcd.print(AQI_PM2_5);
+        }
+        else if(AQI_PM10 >= AQI_PM2_5 && AQI_PM10 >= AQI_CO)
+        {
+          lcd.print(AQI_PM10);
+        }
+        else
+        {
+          lcd.print(AQI_CO);
+        }
         if(millis() - prevTime >= 4000)
         {
           displayState = displayState1;
