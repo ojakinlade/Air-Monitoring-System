@@ -1,6 +1,6 @@
 #include "MQ7.h"
 
-MQ7 mq7(A0);
+MQ7 mq7(A3);
 
 void setup() {
   // put your setup code here, to run once:
