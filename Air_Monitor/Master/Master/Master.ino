@@ -79,6 +79,24 @@ static void StoreNewFlashData(const char* flashLoc,const char* newData,
   }
 }
 
+float GetMaximumAqi(float a,float b,float c,float d)
+{
+  float maximum = a;
+  if(b > maximum)
+  {
+    maximum = b;
+  }
+  if(c > maximum)
+  {
+    maximum = c;
+  }
+  if(d > maximum)
+  {
+    maximum = d;
+  }
+  return maximum;
+}
+
 void setup() {
   // put your setup code here, to run once:
   setCpuFrequencyMhz(80);
@@ -179,6 +197,8 @@ void WiFiManagementTask(void* pvParameters)
 */
 void ApplicationTask(void* pvParameters)
 {
+  const uint8_t buzzerPin = 13;
+  pinMode(buzzerPin,OUTPUT);
   LiquidCrystal_I2C lcd(0x27,20,4);
   static SensorData_t sensorData;
   static AQI_Calc aqiCalc;
@@ -187,6 +207,7 @@ void ApplicationTask(void* pvParameters)
   float AQI_PM2_5;
   float AQI_CO;
   float AQI_NO2;
+  float maxAqi;
 
   //Startup message
   lcd.init();
@@ -234,6 +255,17 @@ void ApplicationTask(void* pvParameters)
     AQI_PM2_5 = aqiCalc.ComputeIndex(P_PM2_5,sensorData.PM2_5);
     AQI_CO = aqiCalc.ComputeIndex(P_CO,sensorData.CO);
     AQI_NO2 = aqiCalc.ComputeIndex(P_NO2,sensorData.NO2);
+    maxAqi = GetMaximumAqi(AQI_PM10,AQI_PM2_5,
+                           AQI_CO,AQI_NO2);
+    //Turn on the Buzzer when the Maximum AQI exceeds acceptable limits
+    if(maxAqi > 200.0)
+    {
+      digitalWrite(buzzerPin,HIGH);
+    }
+    else
+    {
+      digitalWrite(buzzerPin,LOW);
+    }
     //FSM[Displays the received sensor data received on the LCD]
     switch(displayState)
     {
@@ -251,8 +283,8 @@ void ApplicationTask(void* pvParameters)
         lcd.print(sensorData.NO2);
         lcd.print(" ppm");
         lcd.setCursor(0,3);
-        lcd.print("NH3 conc: ");
-        lcd.print(sensorData.NH3);
+        lcd.print("CO conc: ");
+        lcd.print(sensorData.CO);
         lcd.print(" ppm");
         if(millis() - prevTime >= 4000)
         {
@@ -264,18 +296,17 @@ void ApplicationTask(void* pvParameters)
         
       case displayState2:
         lcd.setCursor(0,0);
-        lcd.print("CO conc: ");
-        lcd.print(sensorData.CO);
-        lcd.print(" ppm");
-        lcd.setCursor(0,1);
         lcd.print("PM2.5(ug/m3): ");
         lcd.print(sensorData.PM2_5);
-        lcd.setCursor(0,2);
+        lcd.setCursor(0,1);
         lcd.print("PM10(ug/m3): ");
         lcd.print(sensorData.PM10);
-        lcd.setCursor(0,3);
+        lcd.setCursor(0,2);
         lcd.print("NO2 AQI: ");
         lcd.print(AQI_NO2);
+        lcd.setCursor(0,3);
+        lcd.print("CO AQI: ");
+        lcd.print(AQI_CO);
         if(millis() - prevTime >= 4000)
         {
           displayState = displayState3;
@@ -286,15 +317,12 @@ void ApplicationTask(void* pvParameters)
 
       case displayState3:
         lcd.setCursor(0,0);
-        lcd.print("CO AQI: ");
-        lcd.print(AQI_CO);
-        lcd.setCursor(0,1);
         lcd.print("PM2.5 AQI: ");
         lcd.print(AQI_PM2_5);
-        lcd.setCursor(0,2);
+        lcd.setCursor(0,1);
         lcd.print("PM10 AQI: ");
         lcd.print(AQI_PM10);
-        lcd.setCursor(0,3);
+        lcd.setCursor(0,2);
         lcd.print("Actual AQI: ");
         if(AQI_PM2_5 >= AQI_PM10 && AQI_PM2_5 >= AQI_CO)
         {
@@ -307,6 +335,32 @@ void ApplicationTask(void* pvParameters)
         else
         {
           lcd.print(AQI_CO);
+        }
+        lcd.setCursor(0,3);
+        lcd.print("Remark:");
+        if(maxAqi > 0 && maxAqi <= 50)
+        {
+          lcd.print("Good");
+        }
+        else if(maxAqi > 50 && maxAqi <= 100)
+        {
+          lcd.print("Moderate");
+        }
+        else if(maxAqi > 100 && maxAqi <= 150)
+        {
+          lcd.print("Unhealthy4SG");
+        }
+        else if(maxAqi > 150 && maxAqi <= 200)
+        {
+          lcd.print("Unhealthy");
+        }
+        else if(maxAqi > 200 && maxAqi <= 300)
+        {
+          lcd.print("Vry Unhealthy");
+        }
+        else if(maxAqi > 300)
+        {
+          lcd.print("Hazardous");
         }
         if(millis() - prevTime >= 4000)
         {
